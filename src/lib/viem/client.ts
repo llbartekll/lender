@@ -1,16 +1,38 @@
-import { createPublicClient, http } from 'viem';
-import { mainnet } from 'viem/chains';
+import { createPublicClient, http, type Chain, type PublicClient } from 'viem';
+import { mainnet, optimism } from 'viem/chains';
 
-const DEFAULT_RPC = `https://rpc.walletconnect.com/v1/?chainId=eip155:1&projectId=${process.env.EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID}`;
+const projectId = process.env.EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID;
 
-export function createClient(rpcUrl?: string) {
-  return createPublicClient({
+const CHAIN_CONFIG: Record<number, { chain: Chain; rpc: string }> = {
+  1: {
     chain: mainnet,
-    transport: http(rpcUrl ?? DEFAULT_RPC),
-    batch: {
-      multicall: true,
-    },
+    rpc: `https://rpc.walletconnect.com/v1/?chainId=eip155:1&projectId=${projectId}`,
+  },
+  10: {
+    chain: optimism,
+    rpc: `https://rpc.walletconnect.com/v1/?chainId=eip155:10&projectId=${projectId}`,
+  },
+};
+
+const clients = new Map<string, PublicClient>();
+
+export function getClient(chainId: number = 10, rpcOverride?: string | null): PublicClient {
+  const key = `${chainId}:${rpcOverride ?? 'default'}`;
+  const cached = clients.get(key);
+  if (cached) return cached;
+
+  const config = CHAIN_CONFIG[chainId];
+  if (!config) throw new Error(`Unsupported chain: ${chainId}`);
+
+  const client = createPublicClient({
+    chain: config.chain,
+    transport: http(rpcOverride ?? config.rpc),
+    batch: { multicall: true },
   });
+
+  clients.set(key, client as PublicClient);
+  return client as PublicClient;
 }
 
-export const publicClient = createClient();
+/** @deprecated Use getClient(chainId) instead */
+export const publicClient = getClient(1);
