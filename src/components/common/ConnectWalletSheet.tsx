@@ -3,19 +3,34 @@ import { StyleSheet, View, Text, TouchableOpacity, Modal } from 'react-native';
 import { colors, spacing, borderRadius } from '../../theme';
 import { useWalletStore } from '../../store/wallet-store';
 import { AddressInput } from './AddressInput';
+import { PrivateKeyInput } from './PrivateKeyInput';
 
 interface ConnectWalletSheetProps {
   visible: boolean;
   onClose: () => void;
 }
 
+type SheetView = 'options' | 'address' | 'privateKey';
+
 export function ConnectWalletSheet({ visible, onClose }: ConnectWalletSheetProps) {
-  const [showAddressInput, setShowAddressInput] = useState(false);
+  const [view, setView] = useState<SheetView>('options');
   const setWatchAddress = useWalletStore((s) => s.setWatchAddress);
+  const setPrivateKeyWallet = useWalletStore((s) => s.setPrivateKeyWallet);
 
   const handleWatchAddress = (address: string) => {
     setWatchAddress(address);
-    setShowAddressInput(false);
+    setView('options');
+    onClose();
+  };
+
+  const handlePrivateKey = async (privateKey: string) => {
+    await setPrivateKeyWallet(privateKey);
+    setView('options');
+    onClose();
+  };
+
+  const handleClose = () => {
+    setView('options');
     onClose();
   };
 
@@ -24,17 +39,22 @@ export function ConnectWalletSheet({ visible, onClose }: ConnectWalletSheetProps
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} onPress={onClose} />
+        <TouchableOpacity style={styles.backdrop} onPress={handleClose} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
 
-          {showAddressInput ? (
+          {view === 'address' ? (
             <AddressInput
               onSubmit={handleWatchAddress}
-              onCancel={() => setShowAddressInput(false)}
+              onCancel={() => setView('options')}
+            />
+          ) : view === 'privateKey' ? (
+            <PrivateKeyInput
+              onSubmit={handlePrivateKey}
+              onCancel={() => setView('options')}
             />
           ) : (
             <View style={styles.content}>
@@ -45,7 +65,7 @@ export function ConnectWalletSheet({ visible, onClose }: ConnectWalletSheetProps
 
               <TouchableOpacity
                 style={styles.option}
-                onPress={() => setShowAddressInput(true)}
+                onPress={() => setView('address')}
               >
                 <View style={styles.optionIcon}>
                   <Text style={styles.optionIconText}>@</Text>
@@ -54,6 +74,21 @@ export function ConnectWalletSheet({ visible, onClose }: ConnectWalletSheetProps
                   <Text style={styles.optionTitle}>Watch Address</Text>
                   <Text style={styles.optionDescription}>
                     Enter any address to view its positions (read-only)
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.option}
+                onPress={() => setView('privateKey')}
+              >
+                <View style={styles.optionIcon}>
+                  <Text style={styles.optionIconText}>K</Text>
+                </View>
+                <View style={styles.optionInfo}>
+                  <Text style={styles.optionTitle}>Import Private Key</Text>
+                  <Text style={styles.optionDescription}>
+                    Import a wallet with its private key for full access
                   </Text>
                 </View>
               </TouchableOpacity>

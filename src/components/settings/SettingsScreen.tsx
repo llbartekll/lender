@@ -22,7 +22,7 @@ export function SettingsScreen() {
   const address = useActiveAddress();
   const isConnected = useIsConnected();
   const disconnect = useWalletStore((s) => s.disconnect);
-  const isWalletConnected = useWalletStore((s) => s.isWalletConnected);
+  const connectionMethod = useWalletStore((s) => s.connectionMethod);
 
   const refreshInterval = useSettingsStore((s) => s.refreshInterval);
   const setRefreshInterval = useSettingsStore((s) => s.setRefreshInterval);
@@ -46,7 +46,11 @@ export function SettingsScreen() {
               <View style={styles.walletRow}>
                 <View>
                   <Text style={styles.walletLabel}>
-                    {isWalletConnected ? 'Connected' : 'Watching'}
+                    {connectionMethod === 'privateKey'
+                      ? 'Imported'
+                      : connectionMethod === 'watch'
+                        ? 'Watching'
+                        : 'Connected'}
                   </Text>
                   <Text style={styles.walletAddress}>
                     {address ? shortenAddress(address) : '—'}
