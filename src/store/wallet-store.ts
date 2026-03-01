@@ -2,10 +2,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { type Address, isAddress } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
-import * as SecureStore from 'expo-secure-store';
-
-const SECURE_KEY = 'wallet-private-key';
 
 type ConnectionMethod = 'none' | 'watch' | 'privateKey';
 
@@ -19,7 +15,7 @@ interface WalletState {
 
   setAddress: (address: Address) => void;
   setWatchAddress: (address: string) => void;
-  setPrivateKeyWallet: (privateKey: string) => Promise<void>;
+  setPrivateKeyWallet: (address: Address) => void;
   disconnect: () => void;
 }
 
@@ -43,21 +39,15 @@ export const useWalletStore = create<WalletState>()(
         }
       },
 
-      setPrivateKeyWallet: async (privateKey: string) => {
-        const hex = privateKey.startsWith('0x')
-          ? (privateKey as `0x${string}`)
-          : (`0x${privateKey}` as `0x${string}`);
-        const account = privateKeyToAccount(hex);
-        await SecureStore.setItemAsync(SECURE_KEY, hex);
+      setPrivateKeyWallet: (address: Address) => {
         set({
-          address: account.address,
+          address,
           watchAddress: null,
           connectionMethod: 'privateKey',
         });
       },
 
       disconnect: () => {
-        SecureStore.deleteItemAsync(SECURE_KEY).catch(() => {});
         set({
           address: null,
           watchAddress: null,
@@ -73,14 +63,18 @@ export const useWalletStore = create<WalletState>()(
         watchAddress: state.watchAddress,
         connectionMethod: state.connectionMethod,
       }),
+      // Migrate old persisted state that had isWalletConnected
+      migrate: (persisted: any) => {
+        if (persisted && 'isWalletConnected' in persisted) {
+          const { isWalletConnected, ...rest } = persisted;
+          return { ...rest, connectionMethod: isWalletConnected ? 'none' : (rest.watchAddress ? 'watch' : 'none') };
+        }
+        return persisted;
+      },
+      version: 1,
     },
   ),
 );
-
-/** Read private key from SecureStore (for signing in Phase 2) */
-export async function getPrivateKey(): Promise<string | null> {
-  return SecureStore.getItemAsync(SECURE_KEY);
-}
 
 /** Get the active address to use for queries (connected or watch) */
 export function useActiveAddress(): Address | null {

@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { type Address } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { colors, spacing, borderRadius } from '../../theme';
 import { shortenAddress } from '../../lib/utils/format';
 
 interface PrivateKeyInputProps {
-  onSubmit: (privateKey: string) => void;
+  onSubmit: (address: Address, privateKey: string) => void;
   onCancel?: () => void;
 }
 
@@ -34,7 +35,7 @@ export function PrivateKeyInput({ onSubmit, onCancel }: PrivateKeyInputProps) {
       const account = privateKeyToAccount(hex);
       setError(null);
       setDerivedAddress(account.address);
-      onSubmit(trimmed);
+      onSubmit(account.address, trimmed);
     } catch {
       setError('Invalid private key');
     }

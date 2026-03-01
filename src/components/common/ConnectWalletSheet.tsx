@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Modal } from 'react-native';
+import { type Address } from 'viem';
 import { colors, spacing, borderRadius } from '../../theme';
 import { useWalletStore } from '../../store/wallet-store';
+import { storePrivateKey } from '../../lib/utils/secure-wallet';
 import { AddressInput } from './AddressInput';
 import { PrivateKeyInput } from './PrivateKeyInput';
 
@@ -23,8 +25,9 @@ export function ConnectWalletSheet({ visible, onClose }: ConnectWalletSheetProps
     onClose();
   };
 
-  const handlePrivateKey = async (privateKey: string) => {
-    await setPrivateKeyWallet(privateKey);
+  const handlePrivateKey = async (address: Address, privateKey: string) => {
+    await storePrivateKey(privateKey);
+    setPrivateKeyWallet(address);
     setView('options');
     onClose();
   };

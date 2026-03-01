@@ -14,6 +14,7 @@ import { colors, spacing, borderRadius } from '../../theme';
 import { shortenAddress } from '../../lib/utils/format';
 import { useWalletStore, useActiveAddress, useIsConnected } from '../../store/wallet-store';
 import { useSettingsStore, SUPPORTED_CHAINS } from '../../store/settings-store';
+import { deletePrivateKey } from '../../lib/utils/secure-wallet';
 import { ConnectWalletSheet } from '../common/ConnectWalletSheet';
 
 const REFRESH_OPTIONS = [15, 30, 60];
@@ -21,8 +22,13 @@ const REFRESH_OPTIONS = [15, 30, 60];
 export function SettingsScreen() {
   const address = useActiveAddress();
   const isConnected = useIsConnected();
-  const disconnect = useWalletStore((s) => s.disconnect);
+  const storeDisconnect = useWalletStore((s) => s.disconnect);
   const connectionMethod = useWalletStore((s) => s.connectionMethod);
+
+  const disconnect = () => {
+    deletePrivateKey().catch(() => {});
+    storeDisconnect();
+  };
 
   const refreshInterval = useSettingsStore((s) => s.refreshInterval);
   const setRefreshInterval = useSettingsStore((s) => s.setRefreshInterval);
