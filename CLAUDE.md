@@ -26,9 +26,13 @@
 - **New screen**: create route in `app/`, create screen component in `src/components/<feature>/`
 - **New contract read**: add ABI to `abis/`, add read function to `reads.ts`, add hook in `hooks/queries/`
 - **New chain**: add entry to `AAVE_V3_ADDRESSES` in `addresses.ts`
+- **New write transaction**: add ABI entry to `abis/`, add function to `writes.ts`, use `useTransaction` hook to orchestrate (approve → execute → wait → invalidate)
 
 ## Key Files
 - RPC config: `src/lib/viem/client.ts`
 - Contract addresses: `src/lib/contracts/addresses.ts`
 - Data transform pipeline: `reads.ts` → `transform.ts` → hook → component
 - Mock data toggle: `USE_MOCKS` in `src/lib/mocks/reserves.ts`
+- Wallet client: `src/lib/viem/wallet-client.ts` (creates signing client from private key)
+- Write transactions: `src/lib/contracts/writes.ts` (approve, supply, repay)
+- Transaction flow: `writes.ts` → `use-transaction.ts` hook → `TransactionModal.tsx`

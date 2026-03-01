@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { type Address } from 'viem';
@@ -6,6 +7,7 @@ import { TokenIcon } from '../ui/TokenIcon';
 import { StatRow } from '../ui/StatRow';
 import { ErrorState } from '../ui/ErrorState';
 import { SkeletonCard } from '../ui/LoadingSkeleton';
+import { TransactionModal } from '../transactions/TransactionModal';
 import { colors, spacing, borderRadius, getHealthFactorColor } from '../../theme';
 import {
   formatUsd,
@@ -17,12 +19,20 @@ import { tokenAmountToNumber } from '../../lib/utils/aave-math';
 import { useUserPositions } from '../../hooks/queries/use-user-positions';
 import { useAccountSummary } from '../../hooks/queries/use-account-summary';
 import { useReserves } from '../../hooks/queries/use-reserves';
+import { useTokenBalance } from '../../hooks/queries/use-token-balance';
+import { useWalletStore } from '../../store/wallet-store';
+import { type TxType } from '../../hooks/use-transaction';
 
 export function PositionDetail() {
   const { asset } = useLocalSearchParams<{ asset: string }>();
   const { data: positions, isLoading: positionsLoading } = useUserPositions();
   const { data: summary } = useAccountSummary();
   const { data: reservesData, isLoading: reservesLoading } = useReserves();
+  const connectionMethod = useWalletStore((s) => s.connectionMethod);
+  const { data: walletBalance } = useTokenBalance(asset as Address | undefined);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<TxType>('supply');
+  const canTransact = connectionMethod === 'privateKey';
 
   const position = positions?.find(
     (p) => p.underlyingAsset.toLowerCase() === asset?.toLowerCase(),
@@ -185,22 +195,83 @@ export function PositionDetail() {
           )}
         </Card>
 
-        {/* Phase 2 Actions */}
+        {/* Actions */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.actionButton} disabled>
-            <Text style={styles.actionButtonText}>Supply</Text>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>Coming Soon</Text>
-            </View>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              canTransact && styles.supplyButton,
+            ]}
+            disabled={!canTransact}
+            onPress={() => {
+              setModalType('supply');
+              setModalVisible(true);
+            }}
+          >
+            <Text style={[
+              styles.actionButtonText,
+              canTransact && styles.activeButtonText,
+            ]}>
+              Supply
+            </Text>
+            {!canTransact && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>
+                  {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton} disabled>
-            <Text style={styles.actionButtonText}>Repay</Text>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>Coming Soon</Text>
-            </View>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              canTransact && hasBorrow && styles.repayButton,
+            ]}
+            disabled={!canTransact || !hasBorrow}
+            onPress={() => {
+              setModalType('repay');
+              setModalVisible(true);
+            }}
+          >
+            <Text style={[
+              styles.actionButtonText,
+              canTransact && hasBorrow && styles.activeButtonText,
+            ]}>
+              Repay
+            </Text>
+            {!canTransact && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>
+                  {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
+                </Text>
+              </View>
+            )}
+            {canTransact && !hasBorrow && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>No Borrow</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {position && (
+        <TransactionModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          type={modalType}
+          asset={position.underlyingAsset}
+          symbol={symbol}
+          decimals={position.decimals}
+          priceUsd={priceUsd}
+          maxAmount={
+            modalType === 'supply'
+              ? (walletBalance ?? 0n)
+              : (position.variableBorrowBalance ?? 0n)
+          }
+          maxLabel={modalType === 'supply' ? 'Wallet' : 'Debt'}
+        />
+      )}
     </View>
   );
 }
@@ -295,10 +366,21 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     gap: spacing.xs,
   },
+  supplyButton: {
+    backgroundColor: colors.accent,
+    opacity: 1,
+  },
+  repayButton: {
+    backgroundColor: colors.borrowAmber,
+    opacity: 1,
+  },
   actionButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.textTertiary,
+  },
+  activeButtonText: {
+    color: colors.textPrimary,
   },
   comingSoonBadge: {
     paddingHorizontal: spacing.sm,
