@@ -38,15 +38,16 @@ export async function fetchUserReservesData(
       functionName: 'getUserReservesData',
       args: [addresses.poolAddressesProvider, user],
     });
-    console.log('[fetchUserReservesData] got', result[0].length, 'user reserves');
-    const nonZero = result[0].filter(
+    const userReserves = result[0] as readonly { underlyingAsset: Address; scaledATokenBalance: bigint; usageAsCollateralEnabledOnUser: boolean; scaledVariableDebt: bigint }[];
+    console.log('[fetchUserReservesData] got', userReserves.length, 'user reserves');
+    const nonZero = userReserves.filter(
       (r) => r.scaledATokenBalance > 0n || r.scaledVariableDebt > 0n,
     );
     console.log('[fetchUserReservesData] non-zero reserves:', nonZero.length);
     for (const r of nonZero) {
       console.log('[fetchUserReservesData]  asset:', r.underlyingAsset, 'aToken:', r.scaledATokenBalance.toString(), 'debt:', r.scaledVariableDebt.toString());
     }
-    return { userReserves: result[0], userEmodeCategoryId: result[1] };
+    return { userReserves, userEmodeCategoryId: result[1] };
   } catch (error) {
     const err = error as any;
     console.error('[fetchUserReservesData] failed:', err.shortMessage ?? err.message);

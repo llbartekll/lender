@@ -113,14 +113,29 @@ const baseCurrencyInfoComponents = [
   { name: 'networkBaseTokenPriceDecimals', type: 'uint8' },
 ] as const;
 
-const userReserveComponents = [
+/** V3.0 UserReserveData — includes stable borrow fields (7 fields) */
+const userReserveComponentsV3_0 = [
+  { name: 'underlyingAsset', type: 'address' },
+  { name: 'scaledATokenBalance', type: 'uint256' },
+  { name: 'usageAsCollateralEnabledOnUser', type: 'bool' },
+  { name: 'stableBorrowRate', type: 'uint256' },
+  { name: 'scaledVariableDebt', type: 'uint256' },
+  { name: 'principalStableDebt', type: 'uint256' },
+  { name: 'stableBorrowLastUpdateTimestamp', type: 'uint256' },
+] as const;
+
+/** V3.1 UserReserveData — no stable borrow fields (4 fields) */
+const userReserveComponentsV3_1 = [
   { name: 'underlyingAsset', type: 'address' },
   { name: 'scaledATokenBalance', type: 'uint256' },
   { name: 'usageAsCollateralEnabledOnUser', type: 'bool' },
   { name: 'scaledVariableDebt', type: 'uint256' },
 ] as const;
 
-function buildAbi(reserveComponents: readonly Record<string, unknown>[]) {
+function buildAbi(
+  reserveComponents: readonly Record<string, unknown>[],
+  userReserveComponents: readonly Record<string, unknown>[],
+) {
   return [
     {
       inputs: [{ name: 'provider', type: 'address' }],
@@ -149,10 +164,10 @@ function buildAbi(reserveComponents: readonly Record<string, unknown>[]) {
 }
 
 /** V3.0 ABI for Optimism and other original periphery deployments */
-export const uiPoolDataProviderV3_0Abi = buildAbi(reserveDataV3_0);
+export const uiPoolDataProviderV3_0Abi = buildAbi(reserveDataV3_0, userReserveComponentsV3_0);
 
 /** V3.1 ABI for Ethereum mainnet (aave-v3-origin) */
-export const uiPoolDataProviderV3_1Abi = buildAbi(reserveDataV3_1);
+export const uiPoolDataProviderV3_1Abi = buildAbi(reserveDataV3_1, userReserveComponentsV3_1);
 
 /** Chain → ABI version mapping */
 const CHAIN_ABI_VERSION: Record<number, 'v3.0' | 'v3.1'> = {
