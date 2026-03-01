@@ -16,6 +16,7 @@ import {
   formatHealthFactor,
 } from '../../lib/utils/format';
 import { tokenAmountToNumber } from '../../lib/utils/aave-math';
+import { parseTokenAmount } from '../../lib/utils/parse-amount';
 import { useUserPositions } from '../../hooks/queries/use-user-positions';
 import { useAccountSummary } from '../../hooks/queries/use-account-summary';
 import { useReserves } from '../../hooks/queries/use-reserves';
@@ -60,6 +61,7 @@ export function PositionDetail() {
     );
   }
 
+  const decimals = position?.decimals ?? reserve?.decimals ?? 18;
   const symbol = position?.symbol ?? reserve?.symbol ?? '';
   const name = position?.name ?? reserve?.name ?? '';
   const priceUsd = position?.priceUsd ?? reserve?.priceUsd ?? 0;
@@ -67,6 +69,19 @@ export function PositionDetail() {
   const hasBorrow =
     position &&
     position.variableBorrowBalance > 0n;
+  const canBorrow = reserve?.borrowingEnabled ?? false;
+
+  // Max borrow: min(availableBorrowsUsd / priceUsd, availableLiquidity)
+  const borrowMaxFromPower = summary && priceUsd > 0
+    ? parseTokenAmount(
+        (summary.availableBorrowsUsd / priceUsd).toFixed(decimals),
+        decimals,
+      )
+    : 0n;
+  const borrowMaxFromLiquidity = reserve?.availableLiquidity ?? 0n;
+  const maxBorrow = borrowMaxFromPower < borrowMaxFromLiquidity
+    ? borrowMaxFromPower
+    : borrowMaxFromLiquidity;
 
   // LTV bar calculation
   const ltv = reserve?.baseLTVasCollateral ?? 0;
@@ -252,24 +267,57 @@ export function PositionDetail() {
               </View>
             )}
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              canTransact && canBorrow && styles.borrowButton,
+            ]}
+            disabled={!canTransact || !canBorrow}
+            onPress={() => {
+              setModalType('borrow');
+              setModalVisible(true);
+            }}
+          >
+            <Text style={[
+              styles.actionButtonText,
+              canTransact && canBorrow && styles.activeButtonText,
+            ]}>
+              Borrow
+            </Text>
+            {!canTransact && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>
+                  {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
-      {position && (
+      {(asset as Address) && (
         <TransactionModal
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
           type={modalType}
-          asset={position.underlyingAsset}
+          asset={asset as Address}
           symbol={symbol}
-          decimals={position.decimals}
+          decimals={decimals}
           priceUsd={priceUsd}
           maxAmount={
             modalType === 'supply'
               ? (walletBalance ?? 0n)
-              : (position.variableBorrowBalance ?? 0n)
+              : modalType === 'borrow'
+                ? maxBorrow
+                : (position?.variableBorrowBalance ?? 0n)
           }
-          maxLabel={modalType === 'supply' ? 'Wallet' : 'Debt'}
+          maxLabel={
+            modalType === 'supply'
+              ? 'Wallet'
+              : modalType === 'borrow'
+                ? 'Available'
+                : 'Debt'
+          }
         />
       )}
     </View>
@@ -371,6 +419,10 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   repayButton: {
+    backgroundColor: colors.borrowAmber,
+    opacity: 1,
+  },
+  borrowButton: {
     backgroundColor: colors.borrowAmber,
     opacity: 1,
   },

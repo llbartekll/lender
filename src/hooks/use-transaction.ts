@@ -9,6 +9,7 @@ import {
   approveToken,
   supplyToPool,
   repayToPool,
+  borrowFromPool,
   REPAY_MAX_AMOUNT,
 } from '../lib/contracts/writes';
 import { getAddresses } from '../lib/contracts/addresses';
@@ -24,7 +25,7 @@ export type TxStep =
   | 'success'
   | 'error';
 
-export type TxType = 'supply' | 'repay';
+export type TxType = 'supply' | 'repay' | 'borrow';
 
 interface UseTransactionResult {
   step: TxStep;
@@ -85,32 +86,35 @@ export function useTransaction(): UseTransactionResult {
       const addresses = getAddresses(chainId);
       const spender = addresses.pool;
 
-      // Determine the amount to approve
-      const approveAmount = type === 'repay' && isMax
-        ? REPAY_MAX_AMOUNT
-        : amount;
+      // Borrow doesn't need ERC20 approval — Pool mints debt tokens
+      if (type !== 'borrow') {
+        // Determine the amount to approve
+        const approveAmount = type === 'repay' && isMax
+          ? REPAY_MAX_AMOUNT
+          : amount;
 
-      // Check allowance
-      setStep('checking');
-      const currentAllowance = await checkAllowance(
-        publicClient,
-        asset,
-        userAddress,
-        spender,
-      );
-
-      // Approve if needed
-      if (currentAllowance < approveAmount) {
-        setStep('approving');
-        const approveTxHash = await approveToken(
-          walletClient,
+        // Check allowance
+        setStep('checking');
+        const currentAllowance = await checkAllowance(
+          publicClient,
           asset,
+          userAddress,
           spender,
-          approveAmount,
         );
 
-        setStep('waitingApproval');
-        await publicClient.waitForTransactionReceipt({ hash: approveTxHash });
+        // Approve if needed
+        if (currentAllowance < approveAmount) {
+          setStep('approving');
+          const approveTxHash = await approveToken(
+            walletClient,
+            asset,
+            spender,
+            approveAmount,
+          );
+
+          setStep('waitingApproval');
+          await publicClient.waitForTransactionReceipt({ hash: approveTxHash });
+        }
       }
 
       // Execute transaction
@@ -120,6 +124,8 @@ export function useTransaction(): UseTransactionResult {
       let hash: `0x${string}`;
       if (type === 'supply') {
         hash = await supplyToPool(walletClient, asset, txAmount, userAddress, chainId);
+      } else if (type === 'borrow') {
+        hash = await borrowFromPool(walletClient, asset, amount, userAddress, chainId);
       } else {
         hash = await repayToPool(walletClient, asset, txAmount, userAddress, chainId);
       }

@@ -68,6 +68,25 @@ export async function supplyToPool(
   });
 }
 
+export async function borrowFromPool(
+  walletClient: WalletClient,
+  asset: Address,
+  amount: bigint,
+  onBehalfOf: Address,
+  chainId: number = 10,
+): Promise<`0x${string}`> {
+  const addresses = getAddresses(chainId);
+  const { account, chain } = walletClient;
+  return walletClient.writeContract({
+    address: addresses.pool,
+    abi: poolAbi,
+    functionName: 'borrow',
+    args: [asset, amount, 2n, 0, onBehalfOf],
+    account: account as Account,
+    chain: chain as Chain,
+  });
+}
+
 export async function repayToPool(
   walletClient: WalletClient,
   asset: Address,
