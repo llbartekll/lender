@@ -1,19 +1,20 @@
 {
   "expo": {
-    "name": "lender-temp",
-    "slug": "lender-temp",
+    "name": "DeFi Lender",
+    "slug": "defi-lender",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "lendertemp",
-    "userInterfaceStyle": "automatic",
+    "scheme": "defilender",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0A0E17"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.defi-lender"
     },
     "android": {
       "adaptiveIcon": {
