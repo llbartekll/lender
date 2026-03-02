@@ -53,8 +53,8 @@ export function TransactionModal({
   const { step, txHash, error, execute, reset } = useTransaction();
 
   const isProcessing = step !== 'idle' && step !== 'success' && step !== 'error';
-  const typeLabel = type === 'supply' ? 'Supply' : type === 'borrow' ? 'Borrow' : 'Repay';
-  const accentColor = type === 'supply' ? colors.accent : colors.borrowAmber;
+  const typeLabel = type === 'supply' ? 'Supply' : type === 'borrow' ? 'Borrow' : type === 'withdraw' ? 'Withdraw' : 'Repay';
+  const accentColor = type === 'supply' || type === 'withdraw' ? colors.accent : colors.borrowAmber;
 
   const parsedAmount = inputAmount ? parseTokenAmount(inputAmount, decimals) : 0n;
   const usdValue = inputAmount
@@ -81,7 +81,7 @@ export function TransactionModal({
       type,
       asset,
       amount: parsedAmount,
-      isMax: type === 'repay' && isMax,
+      isMax: (type === 'repay' || type === 'withdraw') && isMax,
     });
   };
 

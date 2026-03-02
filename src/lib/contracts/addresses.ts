@@ -29,3 +29,19 @@ export function getAddresses(chainId: number = 1): AaveV3Addresses {
   }
   return addresses;
 }
+
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+export const LEVERAGE_MANAGER_ADDRESSES: Record<number, Address> = {
+  10: (process.env.EXPO_PUBLIC_LEVERAGE_MANAGER_ADDRESS_OP as Address | undefined) ?? ZERO_ADDRESS,
+};
+
+export function getLeverageManagerAddress(chainId: number = 10): Address {
+  const address = LEVERAGE_MANAGER_ADDRESSES[chainId];
+  if (!address || address === ZERO_ADDRESS) {
+    throw new Error(
+      `LeverageManager address not configured for chain ${chainId}. Set EXPO_PUBLIC_LEVERAGE_MANAGER_ADDRESS_OP in your .env`,
+    );
+  }
+  return address;
+}

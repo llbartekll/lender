@@ -4,6 +4,7 @@ import { poolAbi } from './abis/pool';
 import { getAddresses } from './addresses';
 
 export const REPAY_MAX_AMOUNT = maxUint256;
+export const WITHDRAW_MAX_AMOUNT = maxUint256;
 
 export async function checkAllowance(
   client: PublicClient,
@@ -82,6 +83,25 @@ export async function borrowFromPool(
     abi: poolAbi,
     functionName: 'borrow',
     args: [asset, amount, 2n, 0, onBehalfOf],
+    account: account as Account,
+    chain: chain as Chain,
+  });
+}
+
+export async function withdrawFromPool(
+  walletClient: WalletClient,
+  asset: Address,
+  amount: bigint,
+  to: Address,
+  chainId: number = 10,
+): Promise<`0x${string}`> {
+  const addresses = getAddresses(chainId);
+  const { account, chain } = walletClient;
+  return walletClient.writeContract({
+    address: addresses.pool,
+    abi: poolAbi,
+    functionName: 'withdraw',
+    args: [asset, amount, to],
     account: account as Account,
     chain: chain as Chain,
   });

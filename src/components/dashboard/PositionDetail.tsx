@@ -210,88 +210,124 @@ export function PositionDetail() {
           )}
         </Card>
 
-        {/* Actions */}
+        {/* Actions — 2x2 grid */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              canTransact && styles.supplyButton,
-            ]}
-            disabled={!canTransact}
-            onPress={() => {
-              setModalType('supply');
-              setModalVisible(true);
-            }}
-          >
-            <Text style={[
-              styles.actionButtonText,
-              canTransact && styles.activeButtonText,
-            ]}>
-              Supply
-            </Text>
-            {!canTransact && (
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>
-                  {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              canTransact && hasBorrow && styles.repayButton,
-            ]}
-            disabled={!canTransact || !hasBorrow}
-            onPress={() => {
-              setModalType('repay');
-              setModalVisible(true);
-            }}
-          >
-            <Text style={[
-              styles.actionButtonText,
-              canTransact && hasBorrow && styles.activeButtonText,
-            ]}>
-              Repay
-            </Text>
-            {!canTransact && (
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>
-                  {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
-                </Text>
-              </View>
-            )}
-            {canTransact && !hasBorrow && (
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>No Borrow</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              canTransact && canBorrow && styles.borrowButton,
-            ]}
-            disabled={!canTransact || !canBorrow}
-            onPress={() => {
-              setModalType('borrow');
-              setModalVisible(true);
-            }}
-          >
-            <Text style={[
-              styles.actionButtonText,
-              canTransact && canBorrow && styles.activeButtonText,
-            ]}>
-              Borrow
-            </Text>
-            {!canTransact && (
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>
-                  {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          {/* Supply row */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                canTransact && styles.supplyButton,
+              ]}
+              disabled={!canTransact}
+              onPress={() => {
+                setModalType('supply');
+                setModalVisible(true);
+              }}
+            >
+              <Text style={[
+                styles.actionButtonText,
+                canTransact && styles.activeButtonText,
+              ]}>
+                Supply
+              </Text>
+              {!canTransact && (
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>
+                    {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                canTransact && hasSupply && styles.withdrawButton,
+              ]}
+              disabled={!canTransact || !hasSupply}
+              onPress={() => {
+                setModalType('withdraw');
+                setModalVisible(true);
+              }}
+            >
+              <Text style={[
+                styles.actionButtonText,
+                canTransact && hasSupply && styles.activeButtonText,
+              ]}>
+                Withdraw
+              </Text>
+              {!canTransact && (
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>
+                    {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
+                  </Text>
+                </View>
+              )}
+              {canTransact && !hasSupply && (
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>No Supply</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+          {/* Borrow row */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                canTransact && canBorrow && styles.borrowButton,
+              ]}
+              disabled={!canTransact || !canBorrow}
+              onPress={() => {
+                setModalType('borrow');
+                setModalVisible(true);
+              }}
+            >
+              <Text style={[
+                styles.actionButtonText,
+                canTransact && canBorrow && styles.activeButtonText,
+              ]}>
+                Borrow
+              </Text>
+              {!canTransact && (
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>
+                    {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                canTransact && hasBorrow && styles.repayButton,
+              ]}
+              disabled={!canTransact || !hasBorrow}
+              onPress={() => {
+                setModalType('repay');
+                setModalVisible(true);
+              }}
+            >
+              <Text style={[
+                styles.actionButtonText,
+                canTransact && hasBorrow && styles.activeButtonText,
+              ]}>
+                Repay
+              </Text>
+              {!canTransact && (
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>
+                    {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
+                  </Text>
+                </View>
+              )}
+              {canTransact && !hasBorrow && (
+                <View style={styles.comingSoonBadge}>
+                  <Text style={styles.comingSoonText}>No Borrow</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -309,14 +345,18 @@ export function PositionDetail() {
               ? (walletBalance ?? 0n)
               : modalType === 'borrow'
                 ? maxBorrow
-                : (position?.variableBorrowBalance ?? 0n)
+                : modalType === 'withdraw'
+                  ? (position?.supplyBalance ?? 0n)
+                  : (position?.variableBorrowBalance ?? 0n)
           }
           maxLabel={
             modalType === 'supply'
               ? 'Wallet'
               : modalType === 'borrow'
                 ? 'Available'
-                : 'Debt'
+                : modalType === 'withdraw'
+                  ? 'Supplied'
+                  : 'Debt'
           }
         />
       )}
@@ -402,6 +442,9 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
   },
   actionsContainer: {
+    gap: spacing.md,
+  },
+  actionsRow: {
     flexDirection: 'row',
     gap: spacing.md,
   },
@@ -418,8 +461,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     opacity: 1,
   },
+  withdrawButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.accent,
+    opacity: 1,
+  },
   repayButton: {
-    backgroundColor: colors.borrowAmber,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.borrowAmber,
     opacity: 1,
   },
   borrowButton: {

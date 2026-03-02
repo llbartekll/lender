@@ -10,7 +10,9 @@ import {
   supplyToPool,
   repayToPool,
   borrowFromPool,
+  withdrawFromPool,
   REPAY_MAX_AMOUNT,
+  WITHDRAW_MAX_AMOUNT,
 } from '../lib/contracts/writes';
 import { getAddresses } from '../lib/contracts/addresses';
 import { useSettingsStore } from '../store/settings-store';
@@ -25,7 +27,7 @@ export type TxStep =
   | 'success'
   | 'error';
 
-export type TxType = 'supply' | 'repay' | 'borrow';
+export type TxType = 'supply' | 'repay' | 'borrow' | 'withdraw';
 
 interface UseTransactionResult {
   step: TxStep;
@@ -86,8 +88,8 @@ export function useTransaction(): UseTransactionResult {
       const addresses = getAddresses(chainId);
       const spender = addresses.pool;
 
-      // Borrow doesn't need ERC20 approval — Pool mints debt tokens
-      if (type !== 'borrow') {
+      // Borrow and withdraw don't need ERC20 approval
+      if (type !== 'borrow' && type !== 'withdraw') {
         // Determine the amount to approve
         const approveAmount = type === 'repay' && isMax
           ? REPAY_MAX_AMOUNT
@@ -119,13 +121,19 @@ export function useTransaction(): UseTransactionResult {
 
       // Execute transaction
       setStep('sending');
-      const txAmount = type === 'repay' && isMax ? REPAY_MAX_AMOUNT : amount;
+      const txAmount = type === 'repay' && isMax
+        ? REPAY_MAX_AMOUNT
+        : type === 'withdraw' && isMax
+          ? WITHDRAW_MAX_AMOUNT
+          : amount;
 
       let hash: `0x${string}`;
       if (type === 'supply') {
         hash = await supplyToPool(walletClient, asset, txAmount, userAddress, chainId);
       } else if (type === 'borrow') {
         hash = await borrowFromPool(walletClient, asset, amount, userAddress, chainId);
+      } else if (type === 'withdraw') {
+        hash = await withdrawFromPool(walletClient, asset, txAmount, userAddress, chainId);
       } else {
         hash = await repayToPool(walletClient, asset, txAmount, userAddress, chainId);
       }
