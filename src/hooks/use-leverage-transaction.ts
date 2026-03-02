@@ -144,9 +144,14 @@ export function useLeverageTransaction(): UseLeverageTransactionResult {
         : await deleverage(walletClient, params, chainId);
 
       setStep('waitingConfirmation');
-      await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
       setTxHash(hash);
+
+      if (receipt.status === 'reverted') {
+        throw new Error('Transaction reverted on-chain');
+      }
+
       setStep('success');
 
       queryClient.invalidateQueries({ queryKey: ['userPositions'] });

@@ -85,6 +85,20 @@ export function PositionDetail() {
     .slice(0, 6);
   const hasDebtOptions = debtOptions.length > 0;
 
+  // Borrow positions: tokens the user actually owes (excluding same-asset as collateral)
+  const borrowPositions = (positions ?? [])
+    .filter((p) =>
+      p.variableBorrowBalance > 0n
+      && p.underlyingAsset.toLowerCase() !== (asset?.toLowerCase() ?? ''),
+    )
+    .map((p) => ({
+      asset: p.underlyingAsset,
+      symbol: p.symbol,
+      decimals: p.decimals,
+      balance: p.variableBorrowBalance,
+    }));
+  const hasBorrowPositions = borrowPositions.length > 0;
+
   // Max borrow: min(availableBorrowsUsd / priceUsd, availableLiquidity)
   const borrowMaxFromPower = summary && priceUsd > 0
     ? parseTokenAmount(
@@ -386,9 +400,9 @@ export function PositionDetail() {
           <TouchableOpacity
             style={[
               styles.actionButton,
-              canTransact && hasSupply && hasBorrow && hasDebtOptions && styles.deleverageButton,
+              canTransact && hasSupply && hasBorrowPositions && styles.deleverageButton,
             ]}
-            disabled={!canTransact || !hasSupply || !hasBorrow || !hasDebtOptions}
+            disabled={!canTransact || !hasSupply || !hasBorrowPositions}
             onPress={() => {
               setLeverageModalType('deleverage');
               setLeverageModalVisible(true);
@@ -397,7 +411,7 @@ export function PositionDetail() {
             <Text
               style={[
                 styles.actionButtonText,
-                canTransact && hasSupply && hasBorrow && hasDebtOptions && styles.activeButtonText,
+                canTransact && hasSupply && hasBorrowPositions && styles.activeButtonText,
               ]}
             >
               Deleverage
@@ -409,9 +423,14 @@ export function PositionDetail() {
                 </Text>
               </View>
             )}
-            {canTransact && (!hasSupply || !hasBorrow) && (
+            {canTransact && !hasSupply && (
               <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>Need Supply + Debt</Text>
+                <Text style={styles.comingSoonText}>Need Collateral</Text>
+              </View>
+            )}
+            {canTransact && hasSupply && !hasBorrowPositions && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>No Cross-Asset Debt</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -465,6 +484,7 @@ export function PositionDetail() {
             availableLiquidity: option.availableLiquidity,
             variableDebtTokenAddress: option.variableDebtTokenAddress,
           }))}
+          borrowPositions={borrowPositions}
         />
       )}
     </View>

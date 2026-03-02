@@ -139,9 +139,14 @@ export function useTransaction(): UseTransactionResult {
       }
 
       setStep('waitingConfirmation');
-      await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
       setTxHash(hash);
+
+      if (receipt.status === 'reverted') {
+        throw new Error('Transaction reverted on-chain');
+      }
+
       setStep('success');
 
       // Invalidate queries to refresh data

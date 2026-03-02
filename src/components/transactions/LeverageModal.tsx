@@ -29,6 +29,13 @@ interface DebtOption {
   variableDebtTokenAddress: Address;
 }
 
+interface BorrowPosition {
+  asset: Address;
+  symbol: string;
+  decimals: number;
+  balance: bigint;
+}
+
 interface LeverageModalProps {
   visible: boolean;
   onClose: () => void;
@@ -39,6 +46,7 @@ interface LeverageModalProps {
   collateralDecimals: number;
   maxCollateralWithdraw: bigint;
   debtOptions: DebtOption[];
+  borrowPositions?: BorrowPosition[];
 }
 
 const FEE_OPTIONS = [100, 500, 3000];
@@ -68,6 +76,7 @@ export function LeverageModal({
   collateralDecimals,
   maxCollateralWithdraw,
   debtOptions,
+  borrowPositions,
 }: LeverageModalProps) {
   const { step, error, txHash, execute, reset } = useLeverageTransaction();
   const [selectedDebtAsset, setSelectedDebtAsset] = useState<Address | null>(null);
@@ -80,14 +89,23 @@ export function LeverageModal({
   const typeLabel = type === 'leverageUp' ? 'Leverage' : 'Deleverage';
   const accentColor = type === 'leverageUp' ? colors.accent : colors.warning;
 
+  const isDeleverage = type === 'deleverage';
+
   const selectedDebt = useMemo(
     () => debtOptions.find((option) => option.asset === selectedDebtAsset) ?? null,
     [debtOptions, selectedDebtAsset],
   );
 
-  const flashLoanAmount = selectedDebt && flashLoanInput
-    ? parseTokenAmount(flashLoanInput, selectedDebt.decimals)
-    : 0n;
+  const selectedBorrowPosition = useMemo(
+    () => borrowPositions?.find((bp) => bp.asset === selectedDebtAsset) ?? null,
+    [borrowPositions, selectedDebtAsset],
+  );
+
+  const flashLoanAmount = isDeleverage
+    ? (selectedBorrowPosition?.balance ?? 0n)
+    : (selectedDebt && flashLoanInput
+      ? parseTokenAmount(flashLoanInput, selectedDebt.decimals)
+      : 0n);
   const collateralToWithdraw = collateralWithdrawInput
     ? parseTokenAmount(collateralWithdrawInput, collateralDecimals)
     : 0n;
@@ -97,9 +115,9 @@ export function LeverageModal({
     : 0;
 
   const validSlippage = Number.isFinite(slippageBps) && slippageBps >= 0 && slippageBps <= 10_000;
-  const validFlashLoan = !!selectedDebt
-    && flashLoanAmount > 0n
-    && flashLoanAmount <= selectedDebt.availableLiquidity;
+  const validFlashLoan = isDeleverage
+    ? flashLoanAmount > 0n
+    : (!!selectedDebt && flashLoanAmount > 0n && flashLoanAmount <= selectedDebt.availableLiquidity);
   const validCollateralWithdraw = type === 'leverageUp'
     ? true
     : collateralToWithdraw > 0n && collateralToWithdraw <= maxCollateralWithdraw;
@@ -116,15 +134,20 @@ export function LeverageModal({
       return;
     }
 
-    if (!selectedDebtAsset && debtOptions.length > 0) {
-      setSelectedDebtAsset(debtOptions[0].asset);
+    if (!selectedDebtAsset) {
+      if (isDeleverage && borrowPositions && borrowPositions.length > 0) {
+        setSelectedDebtAsset(borrowPositions[0].asset);
+      } else if (!isDeleverage && debtOptions.length > 0) {
+        setSelectedDebtAsset(debtOptions[0].asset);
+      }
     }
-  }, [debtOptions, reset, selectedDebtAsset, visible]);
+  }, [borrowPositions, debtOptions, isDeleverage, reset, selectedDebtAsset, visible]);
 
   const handleSubmit = () => {
-    if (!selectedDebt || !canSubmit) return;
+    if (!canSubmit) return;
 
     if (type === 'leverageUp') {
+      if (!selectedDebt) return;
       execute({
         type: 'leverageUp',
         collateralAsset,
@@ -138,10 +161,11 @@ export function LeverageModal({
       return;
     }
 
+    if (!selectedBorrowPosition) return;
     execute({
       type: 'deleverage',
       collateralAsset,
-      debtAsset: selectedDebt.asset,
+      debtAsset: selectedBorrowPosition.asset,
       aTokenAddress: collateralATokenAddress,
       flashLoanAmount,
       collateralToWithdraw,
@@ -206,45 +230,76 @@ export function LeverageModal({
                 <View style={styles.fieldGroup}>
                   <Text style={styles.label}>Debt Asset</Text>
                   <View style={styles.chipsRow}>
-                    {debtOptions.map((option) => (
-                      <TouchableOpacity
-                        key={option.asset}
-                        style={[
-                          styles.chip,
-                          selectedDebtAsset === option.asset && styles.chipActive,
-                        ]}
-                        onPress={() => setSelectedDebtAsset(option.asset)}
-                        disabled={isProcessing}
-                      >
-                        <Text
-                          style={[
-                            styles.chipText,
-                            selectedDebtAsset === option.asset && styles.chipTextActive,
-                          ]}
-                        >
-                          {option.symbol}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                    {isDeleverage
+                      ? (borrowPositions ?? []).map((bp) => (
+                          <TouchableOpacity
+                            key={bp.asset}
+                            style={[
+                              styles.chip,
+                              selectedDebtAsset === bp.asset && styles.chipActive,
+                            ]}
+                            onPress={() => setSelectedDebtAsset(bp.asset)}
+                            disabled={isProcessing}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                selectedDebtAsset === bp.asset && styles.chipTextActive,
+                              ]}
+                            >
+                              {bp.symbol}
+                            </Text>
+                          </TouchableOpacity>
+                        ))
+                      : debtOptions.map((option) => (
+                          <TouchableOpacity
+                            key={option.asset}
+                            style={[
+                              styles.chip,
+                              selectedDebtAsset === option.asset && styles.chipActive,
+                            ]}
+                            onPress={() => setSelectedDebtAsset(option.asset)}
+                            disabled={isProcessing}
+                          >
+                            <Text
+                              style={[
+                                styles.chipText,
+                                selectedDebtAsset === option.asset && styles.chipTextActive,
+                              ]}
+                            >
+                              {option.symbol}
+                            </Text>
+                          </TouchableOpacity>
+                        ))
+                    }
                   </View>
                 </View>
 
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.label}>Flashloan Amount</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={flashLoanInput}
-                    onChangeText={setFlashLoanInput}
-                    placeholder="0.00"
-                    placeholderTextColor={colors.textTertiary}
-                    keyboardType="decimal-pad"
-                    editable={!isProcessing}
-                  />
-                  <Text style={styles.metaText}>
-                    {flashLoanUsd > 0 ? formatUsd(flashLoanUsd) : '$0.00'}
-                    {selectedDebt ? ` • Max: ${formatTokenAmount(tokenAmountToNumber(selectedDebt.availableLiquidity, selectedDebt.decimals))} ${selectedDebt.symbol}` : ''}
-                  </Text>
-                </View>
+                {isDeleverage && selectedBorrowPosition ? (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Flashloan (Full Debt Repayment)</Text>
+                    <Text style={styles.summaryText}>
+                      Repaying {formatTokenAmount(tokenAmountToNumber(selectedBorrowPosition.balance, selectedBorrowPosition.decimals))} {selectedBorrowPosition.symbol}
+                    </Text>
+                  </View>
+                ) : !isDeleverage ? (
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Flashloan Amount</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={flashLoanInput}
+                      onChangeText={setFlashLoanInput}
+                      placeholder="0.00"
+                      placeholderTextColor={colors.textTertiary}
+                      keyboardType="decimal-pad"
+                      editable={!isProcessing}
+                    />
+                    <Text style={styles.metaText}>
+                      {flashLoanUsd > 0 ? formatUsd(flashLoanUsd) : '$0.00'}
+                      {selectedDebt ? ` • Max: ${formatTokenAmount(tokenAmountToNumber(selectedDebt.availableLiquidity, selectedDebt.decimals))} ${selectedDebt.symbol}` : ''}
+                    </Text>
+                  </View>
+                ) : null}
 
                 {type === 'deleverage' ? (
                   <View style={styles.fieldGroup}>
@@ -435,6 +490,11 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 12,
     color: colors.textTertiary,
+  },
+  summaryText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   validationText: {
     fontSize: 12,
