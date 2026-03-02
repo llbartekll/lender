@@ -1,10 +1,31 @@
 import { type Address, type PublicClient, type WalletClient, type Account, type Chain, maxUint256 } from 'viem';
 import { erc20Abi } from './abis/erc20';
 import { poolAbi } from './abis/pool';
-import { getAddresses } from './addresses';
+import { creditDelegationAbi } from './abis/credit-delegation';
+import { leverageManagerAbi } from './abis/leverage-manager';
+import { getAddresses, getLeverageManagerAddress } from './addresses';
 
 export const REPAY_MAX_AMOUNT = maxUint256;
 export const WITHDRAW_MAX_AMOUNT = maxUint256;
+
+export interface LeverageUpParams {
+  collateralAsset: Address;
+  debtAsset: Address;
+  flashLoanAmount: bigint;
+  swapPoolFee: number;
+  slippageBps: number;
+  swapPath?: `0x${string}`;
+}
+
+export interface DeleverageParams {
+  collateralAsset: Address;
+  debtAsset: Address;
+  flashLoanAmount: bigint;
+  collateralToWithdraw: bigint;
+  swapPoolFee: number;
+  slippageBps: number;
+  swapPath?: `0x${string}`;
+}
 
 export async function checkAllowance(
   client: PublicClient,
@@ -45,6 +66,37 @@ export async function approveToken(
     abi: erc20Abi,
     functionName: 'approve',
     args: [spender, amount],
+    account: account as Account,
+    chain: chain as Chain,
+  });
+}
+
+export async function checkBorrowAllowance(
+  client: PublicClient,
+  variableDebtToken: Address,
+  fromUser: Address,
+  toDelegatee: Address,
+): Promise<bigint> {
+  return client.readContract({
+    address: variableDebtToken,
+    abi: creditDelegationAbi,
+    functionName: 'borrowAllowance',
+    args: [fromUser, toDelegatee],
+  });
+}
+
+export async function approveCreditDelegation(
+  walletClient: WalletClient,
+  variableDebtToken: Address,
+  delegatee: Address,
+  amount: bigint,
+): Promise<`0x${string}`> {
+  const { account, chain } = walletClient;
+  return walletClient.writeContract({
+    address: variableDebtToken,
+    abi: creditDelegationAbi,
+    functionName: 'approveDelegation',
+    args: [delegatee, amount],
     account: account as Account,
     chain: chain as Chain,
   });
@@ -121,6 +173,57 @@ export async function repayToPool(
     abi: poolAbi,
     functionName: 'repay',
     args: [asset, amount, 2n, onBehalfOf],
+    account: account as Account,
+    chain: chain as Chain,
+  });
+}
+
+export async function leverageUp(
+  walletClient: WalletClient,
+  params: LeverageUpParams,
+  chainId: number = 10,
+): Promise<`0x${string}`> {
+  const managerAddress = getLeverageManagerAddress(chainId);
+  const { account, chain } = walletClient;
+  return walletClient.writeContract({
+    address: managerAddress,
+    abi: leverageManagerAbi,
+    functionName: 'leverageUp',
+    args: [{
+      collateralAsset: params.collateralAsset,
+      debtAsset: params.debtAsset,
+      flashLoanAmount: params.flashLoanAmount,
+      swapPoolFee: params.swapPoolFee,
+      slippageBps: params.slippageBps,
+      swapPath: params.swapPath ?? '0x',
+    }],
+    gas: 900_000n,
+    account: account as Account,
+    chain: chain as Chain,
+  });
+}
+
+export async function deleverage(
+  walletClient: WalletClient,
+  params: DeleverageParams,
+  chainId: number = 10,
+): Promise<`0x${string}`> {
+  const managerAddress = getLeverageManagerAddress(chainId);
+  const { account, chain } = walletClient;
+  return walletClient.writeContract({
+    address: managerAddress,
+    abi: leverageManagerAbi,
+    functionName: 'deleverage',
+    args: [{
+      collateralAsset: params.collateralAsset,
+      debtAsset: params.debtAsset,
+      flashLoanAmount: params.flashLoanAmount,
+      collateralToWithdraw: params.collateralToWithdraw,
+      swapPoolFee: params.swapPoolFee,
+      slippageBps: params.slippageBps,
+      swapPath: params.swapPath ?? '0x',
+    }],
+    gas: 900_000n,
     account: account as Account,
     chain: chain as Chain,
   });

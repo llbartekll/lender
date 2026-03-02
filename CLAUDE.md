@@ -22,6 +22,15 @@
 - Dark theme only. Colors in `src/theme/colors.ts`
 - Contract addresses: chain-indexed map in `src/lib/contracts/addresses.ts`
 
+## RPC Policy
+- Default reads and writes use WalletConnect RPC (configured in `src/lib/viem/client.ts` and `src/lib/viem/wallet-client.ts`).
+- WalletConnect endpoint pattern:
+  - `https://rpc.walletconnect.com/v1/?chainId=eip155:<CHAIN_ID>&projectId=<EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID>`
+- Prefer this default for non-local environments.
+- Use Settings `Custom RPC` only for local dev nodes (Anvil):
+  - iOS simulator: `http://127.0.0.1:8545`
+  - Android emulator: `http://10.0.2.2:8545`
+
 ## Adding Things
 - **New screen**: create route in `app/`, create screen component in `src/components/<feature>/`
 - **New contract read**: add ABI to `abis/`, add read function to `reads.ts`, add hook in `hooks/queries/`

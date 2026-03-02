@@ -161,6 +161,10 @@ export function SettingsScreen() {
                 </View>
               </View>
             )}
+            <Text style={styles.rpcHint}>
+              iOS simulator: http://127.0.0.1:8545{'\n'}
+              Android emulator: http://10.0.2.2:8545
+            </Text>
           </View>
         </Card>
 
@@ -324,6 +328,11 @@ const styles = StyleSheet.create({
   removeText: {
     fontSize: 14,
     color: colors.danger,
+  },
+  rpcHint: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    lineHeight: 16,
   },
   prefLabel: {
     fontSize: 14,

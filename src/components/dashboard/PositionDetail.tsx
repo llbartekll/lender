@@ -8,6 +8,7 @@ import { StatRow } from '../ui/StatRow';
 import { ErrorState } from '../ui/ErrorState';
 import { SkeletonCard } from '../ui/LoadingSkeleton';
 import { TransactionModal } from '../transactions/TransactionModal';
+import { LeverageModal } from '../transactions/LeverageModal';
 import { colors, spacing, borderRadius, getHealthFactorColor } from '../../theme';
 import {
   formatUsd,
@@ -23,6 +24,7 @@ import { useReserves } from '../../hooks/queries/use-reserves';
 import { useTokenBalance } from '../../hooks/queries/use-token-balance';
 import { useWalletStore } from '../../store/wallet-store';
 import { type TxType } from '../../hooks/use-transaction';
+import { type LeverageTxType } from '../../hooks/use-leverage-transaction';
 
 export function PositionDetail() {
   const { asset } = useLocalSearchParams<{ asset: string }>();
@@ -33,6 +35,8 @@ export function PositionDetail() {
   const { data: walletBalance } = useTokenBalance(asset as Address | undefined);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<TxType>('supply');
+  const [leverageModalVisible, setLeverageModalVisible] = useState(false);
+  const [leverageModalType, setLeverageModalType] = useState<LeverageTxType>('leverageUp');
   const canTransact = connectionMethod === 'privateKey';
 
   const position = positions?.find(
@@ -70,6 +74,16 @@ export function PositionDetail() {
     position &&
     position.variableBorrowBalance > 0n;
   const canBorrow = reserve?.borrowingEnabled ?? false;
+  const debtOptions = (reservesData?.reserves ?? [])
+    .filter((r) => (
+      r.borrowingEnabled
+      && !r.isPaused
+      && !r.isFrozen
+      && r.underlyingAsset.toLowerCase() !== (asset?.toLowerCase() ?? '')
+    ))
+    .sort((a, b) => b.availableLiquidityUsd - a.availableLiquidityUsd)
+    .slice(0, 6);
+  const hasDebtOptions = debtOptions.length > 0;
 
   // Max borrow: min(availableBorrowsUsd / priceUsd, availableLiquidity)
   const borrowMaxFromPower = summary && priceUsd > 0
@@ -329,6 +343,79 @@ export function PositionDetail() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Leverage row */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              canTransact && hasSupply && hasDebtOptions && styles.leverageButton,
+            ]}
+            disabled={!canTransact || !hasSupply || !hasDebtOptions}
+            onPress={() => {
+              setLeverageModalType('leverageUp');
+              setLeverageModalVisible(true);
+            }}
+          >
+            <Text
+              style={[
+                styles.actionButtonText,
+                canTransact && hasSupply && hasDebtOptions && styles.activeButtonText,
+              ]}
+            >
+              Leverage
+            </Text>
+            {!canTransact && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>
+                  {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
+                </Text>
+              </View>
+            )}
+            {canTransact && !hasSupply && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>Need Collateral</Text>
+              </View>
+            )}
+            {canTransact && hasSupply && !hasDebtOptions && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>No Debt Assets</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              canTransact && hasSupply && hasBorrow && hasDebtOptions && styles.deleverageButton,
+            ]}
+            disabled={!canTransact || !hasSupply || !hasBorrow || !hasDebtOptions}
+            onPress={() => {
+              setLeverageModalType('deleverage');
+              setLeverageModalVisible(true);
+            }}
+          >
+            <Text
+              style={[
+                styles.actionButtonText,
+                canTransact && hasSupply && hasBorrow && hasDebtOptions && styles.activeButtonText,
+              ]}
+            >
+              Deleverage
+            </Text>
+            {!canTransact && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>
+                  {connectionMethod === 'watch' ? 'Watch Only' : 'Coming Soon'}
+                </Text>
+              </View>
+            )}
+            {canTransact && (!hasSupply || !hasBorrow) && (
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>Need Supply + Debt</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {(asset as Address) && (
@@ -358,6 +445,26 @@ export function PositionDetail() {
                   ? 'Supplied'
                   : 'Debt'
           }
+        />
+      )}
+      {(asset as Address) && reserve && (
+        <LeverageModal
+          visible={leverageModalVisible}
+          onClose={() => setLeverageModalVisible(false)}
+          type={leverageModalType}
+          collateralAsset={asset as Address}
+          collateralATokenAddress={reserve.aTokenAddress}
+          collateralSymbol={symbol}
+          collateralDecimals={decimals}
+          maxCollateralWithdraw={position?.supplyBalance ?? 0n}
+          debtOptions={debtOptions.map((option) => ({
+            asset: option.underlyingAsset,
+            symbol: option.symbol,
+            decimals: option.decimals,
+            priceUsd: option.priceUsd,
+            availableLiquidity: option.availableLiquidity,
+            variableDebtTokenAddress: option.variableDebtTokenAddress,
+          }))}
         />
       )}
     </View>
@@ -475,6 +582,16 @@ const styles = StyleSheet.create({
   },
   borrowButton: {
     backgroundColor: colors.borrowAmber,
+    opacity: 1,
+  },
+  leverageButton: {
+    backgroundColor: colors.accent,
+    opacity: 1,
+  },
+  deleverageButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.warning,
     opacity: 1,
   },
   actionButtonText: {

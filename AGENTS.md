@@ -22,6 +22,15 @@
 - Dark theme only; colors come from `src/theme/colors.ts`
 - Contract addresses are chain-indexed in `src/lib/contracts/addresses.ts`
 
+## RPC Policy
+- Default RPC transport uses WalletConnect RPC with `EXPO_PUBLIC_WALLETCONNECT_PROJECT_ID`.
+- Endpoint format:
+  - `https://rpc.walletconnect.com/v1/?chainId=eip155:<CHAIN_ID>&projectId=<PROJECT_ID>`
+- Keep chain set to Optimism (`10`) unless the task explicitly requires another network.
+- Use `rpcUrl` override from Settings only for local development (for example Anvil):
+  - iOS simulator: `http://127.0.0.1:8545`
+  - Android emulator: `http://10.0.2.2:8545`
+
 ## Skills
 A skill is a local instruction set in a `SKILL.md` file.
 
